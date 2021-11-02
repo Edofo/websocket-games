@@ -13,7 +13,7 @@
 
 Hi, here are some rules to carry out this story oav;
 
-* You **MUST** create a git repository named `cross-pwgame`
+* You **MUST** create a git repository named `websocket-games`
 * You **MUST** create a file called `.author.json` with your fullname
 
 ```sh
