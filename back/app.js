@@ -1,69 +1,97 @@
 const express = require("express");
 const http = require("http");
 const app = express();
+const cors = require("cors");
+const bodyParser = require('body-parser')
+const cookieParser = require('cookie-parser');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
+const rn = require('random-number')
+
 const port = process.env.PORT || 4000;
 
+app.use(cors());
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({extended:true}))
+app.use(express.static('public'))
+app.use(cookieParser());
 
-// const io = new Server(server,{
-//   cors: {
-//     origin: "*",
-//   }
-// });
+const options = {
+  min:  0
+, max:  1000
+, integer: true
+}
 
-// let interval;
+let userRoom1 = []
+let numberRoom1 = []
 
-// io.on("connection", (socket) => {
-//   console.log("New user connected");
-//   // if (interval) {
-//   //   clearInterval(interval);
-//   // }
-//   // interval = setInterval(() => getApiAndEmit(socket), 1000);
+const closestToZero = (numbers) => {
+  if(!numbers.length){
+      return 0;
+  }
+  
+  let closest = 0;
+  
+  for (let i = 0; i < numbers.length ; i++) {
+      if (closest === 0) {
+          closest = numbers[i];
+      } else if (numbers[i] > 0 && numbers[i] <= Math.abs(closest)) {
+          closest = numbers[i];
+      } else if (numbers[i] < 0 && - numbers[i] < Math.abs(closest)) {
+          closest = numbers[i];
+      }
+  }
+  
+  return closest;
+}
 
-//   socket.on("SEND_NICKNAME", (nickname) => {
-//     socket.join('Game')
+io.on('connection', (socket) => {
+  console.log('a user connected');
 
-//     const clients = io.sockets.adapter.rooms.get('Game')
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+    socket.leave('Game')
+  });
 
-//     const numClients = clients ? clients.size : 0
+    socket.on("send nickname", (nickname) => {
+      socket.join('Game')
 
-//     if(numClients < 2) return
+      userRoom1.push(nickname)
 
-//     console.log('game start!')
-//     io.to('Game').emit('GAME_START')
-//   })
+      const clients = io.sockets.adapter.rooms.get('Game')
 
-//     socket.on("disconnect", () => {
+      const numClients = clients ? clients.size : 0
+      
+      if(numClients < 2) return    
 
-//     socket.leave('Game')
+      io.to('Game').emit('GAME_START', userRoom1, rn(options))
+    })
 
+    socket.on("send number", (number) => {
 
+      numberRoom1.push(number)
+      
+      if(numberRoom1.length < 2) return   
+      
+      const num = closestToZero(numberRoom1)
 
-//     console.log("Client disconnected");
-//     // clearInterval(interval);
-//     })
-// });
+      io.to('Game').emit('FINISH_NUMBER', numberRoom1)
 
-// const getApiAndEmit = socket => {
-//   const response = new Date();
-//   // Emitting a new message. Will be consumed by the client
-//   socket.emit("FromAPI", response);
-// };
-
-// server.listen(port, () => console.log(`Listening on port ${port}`));
+      numberRoom1 = []
+    })
+});
 
 /**	
  * Router section
  */
-
 const indexRouter = require('./src/routes/index')
 
 /**
  * Route section
  */
+
 app.use('/', indexRouter);
 
 
@@ -80,7 +108,7 @@ app.use((err, req, res, next) => {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.send('error');
 });
 
 server.listen(port, () => {

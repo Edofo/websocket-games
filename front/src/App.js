@@ -1,71 +1,97 @@
 import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client"
-import './nicknameinput.css'
+import Game from "./components/Game";
 
-function App() {
-  const [socket, setSocket] = useState(null);
+const App = () => {
 
-  useEffect(() => {
-    const socket = io("ws://127.0.0.1:4001");
-    setSocket(socket);
-  }, []);
+    const [socket, setSocket] = useState(null);
 
-  const Leave = () => {
-    socket.disconnect()
-    hideWaiting()
-  }
+    const [info, setInfo] = useState(false);
+    const [nickname, setNickname] = useState('');
 
-  const showWaiting = (players=1) => {
-    const waiting = document.getElementById('waiting'),
-          queue   = document.getElementById('queue')
+    const [game, setGame] = useState(false);
+    const [players, setPlayers] = useState([]);
+    const [number, setNumber] = useState(0);
 
-    waiting.innerText = `Waiting for Player ${players}/2 ...`
-    queue.innerHTML = "Leave Queue"
-    queue.style.display='inline';
-  }
 
-  const hideWaiting = () => {
-    const waiting = document.getElementById('waiting'),
-    queue   = document.getElementById('queue')
+    const [load, setLoad] = useState(false);
 
-    waiting.innerText = ''
-    queue.style.display = 'none'
-  }
+    useEffect(() => {
+        const socket = io("http://localhost:4000", { transports : ['websocket'] });
+        setSocket(socket);
+        console.log(socket)
+    }, []);
 
-  const onClick = () => {
-    socket.emit("SEND_NICKNAME", document.getElementById('nickname').value);
+    const Leave = () => {
+        socket.disconnect()
+        setInfo(false)
+        setNickname('')
+    }
+    
+    const formSend = (e) => {
+        e.preventDefault()
+        const nickname = document.querySelector(`#form-nickname`).value
+        setNickname(nickname)
 
-    showWaiting()
+        if(!load) {
 
-    socket.on('GAME_START', () => {
-      showWaiting(2)
-      document.getElementById('queue').style.display = 'none'
-    })
+            setLoad(true)
 
-  };
+            socket.emit("send nickname", nickname, );
+    
+            setInfo(`Waiting for Player ${players}/2 ...`)
+    
+            socket.on('GAME_START', (players, number) => {
+                setInfo(false)
+                setNumber(number)
+                setPlayers(players)
+                setGame(true)
+                
+            })
+            
+        }
+    }
 
-  return (
-    <div class="card">
-    <h2><svg class="icon" aria-hidden="true">
-      <use href="#icon-coffee" /></svg>Game Rules : Find a number as quickly as possible</h2>
-    <label class="input">
-      <input class="input__field" type="text" placeholder=" " id="nickname" />
-      <span class="input__label">What is your username ?</span>
-    </label>
-    <div class="button-group">
-      <button onClick={onClick}>PLAY</button>
-      </div>
-      <div id="waitingDiv">
-        <div class="waiting">
-        <p id="waiting"></p>
+    return (
+        <div>
+
+            <header>
+                <h1>! WebSocket Game !</h1>
+            </header>
+
+            {
+                !game ?
+                    <div>
+                        <form onSubmit={(e) => formSend(e)}>
+                            <h2>Jouer au jeu</h2>
+                            <div>
+                                <label>Nickame :
+                                    <input id="form-nickname" type="text" placeholder="Nickname" name="nickname" />
+                                </label>
+                            </div>
+                            <button type="submit">Start</button>
+                        </form>
+
+                        {
+                            info && 
+                                <div>
+                                    <p>{info}</p>
+                                    <button onClick={() => Leave()}>Leave</button>
+                                </div>
+                        }
+
+                    </div>
+                :
+                    <Game socket={socket} players={players} nickname={nickname} number={number}/>
+            }
+
+
+            <footer>
+                <p>&copy; All rights reserved</p>
+            </footer>
+            
         </div>
-        <div class="leavequeue">
-        <button hidden id="queue" onClick={Leave} />
-        </div>
-      </div>
-    </div>
-  
-  );
+    );
 }
 
 export default App;
